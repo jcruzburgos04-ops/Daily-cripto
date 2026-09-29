@@ -59,6 +59,8 @@ python -m bot                    # arranca el bot (Ctrl+C para cortar)
 Sin token en `.env` los mensajes se imprimen en la consola, útil para probar.
 
 ### 3. Dejarlo corriendo 24/7
+📘 **Guía paso a paso para Oracle Cloud (gratis): [docs/ORACLE.md](docs/ORACLE.md)** — con un script que instala todo con un solo comando.
+
 Para que funcione solo tiene que estar en un servidor prendido siempre. Opciones baratas o gratis: Oracle Cloud Free Tier, Hetzner, DigitalOcean, una Raspberry Pi en tu casa.
 
 > ⚠️ Binance, Bybit y OKX **bloquean servidores ubicados en EE.UU.** Elegí un servidor en Europa, Asia o Sudamérica.
