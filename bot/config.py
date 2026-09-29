@@ -39,8 +39,9 @@ DEFAULTS: dict[str, Any] = {
         "rearm": 0.5,
     },
     "emas": {
+        "base_timeframe": "1d",
         "refresh_seconds": 60,
-        "touch_cooldown_candles": 3,
+        "touch_cooldown_candles": 1,
         "near_atr": 0.5,
         "confirm_seconds": 60,
         "oscillation_lookback": 20,
@@ -56,7 +57,7 @@ DEFAULTS: dict[str, Any] = {
     "summary": {
         "enabled": True,
         "time_utc": "00:05",
-        "ema_timeframes": ["4h", "1d"],
+        "ema_timeframes": ["1d"],
         "ash_timeframes": ["1d", "1w", "1M"],
     },
 }

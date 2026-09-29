@@ -66,7 +66,7 @@ class Market:
         self.history = history
         self.exchanges: dict[str, ccxt.Exchange] = {}
         self.routes: dict[str, tuple[ccxt.Exchange, str]] = {}
-        self._cache: dict[tuple[str, str], tuple[float, Candles]] = {}
+        self._cache: dict[tuple[str, str], tuple[float, Candles, int]] = {}
         self._locks: dict[tuple[str, str], asyncio.Lock] = {}
 
     async def start(self) -> None:
@@ -108,18 +108,61 @@ class Market:
         ex, symbol = self.resolve(asset)
         return f"{symbol} @ {ex.id}"
 
-    async def candles(self, asset: str, tf: str, max_age: float = 0, limit: int | None = None) -> Candles:
-        """Velas de ``asset`` en ``tf``. Reutiliza la última descarga si tiene menos de ``max_age`` segundos."""
+    async def candles(
+        self, asset: str, tf: str, max_age: float = 0, limit: int | None = None, min_candles: int | None = None
+    ) -> Candles:
+        """Velas de ``asset`` en ``tf``.
+
+        * ``limit``: descarga exactamente las últimas N velas (sin caché incremental).
+        * ``min_candles``: asegura al menos N velas de historia. La primera vez las
+          baja paginando; después sólo pide las últimas y las empalma.
+        * Reutiliza la última descarga si tiene menos de ``max_age`` segundos.
+        """
         key = (asset, tf)
+        need = limit or max(min_candles or 0, self.history)
         lock = self._locks.setdefault(key, asyncio.Lock())
         async with lock:
             cached = self._cache.get(key)
-            if cached and time.time() - cached[0] < max_age:
+            if cached and cached[2] >= need and time.time() - cached[0] < max_age:
                 return cached[1]
             ex, symbol = self.resolve(asset)
-            rows = await ex.fetch_ohlcv(symbol, tf, limit=limit or self.history)
-            c = Candles.from_rows(rows)
+            if limit:
+                c = Candles.from_rows(await ex.fetch_ohlcv(symbol, tf, limit=limit))
+            elif cached and cached[2] >= need:
+                c = await self._update(ex, symbol, tf, cached[1], need)
+            else:
+                c = await self._fetch_many(ex, symbol, tf, need)
             if len(c) == 0:
                 raise RuntimeError(f"{symbol} {tf}: el exchange no devolvió velas")
-            self._cache[key] = (time.time(), c)
+            self._cache[key] = (time.time(), c, need)
             return c
+
+    async def _fetch_many(self, ex, symbol: str, tf: str, need: int) -> Candles:
+        """Baja ``need`` velas paginando (los exchanges devuelven ~1000 por pedido)."""
+        if need <= 1000:
+            return Candles.from_rows(await ex.fetch_ohlcv(symbol, tf, limit=need))
+        step = TF_SECONDS.get(tf, 3600) * 1000
+        since = int(time.time() * 1000) - need * step
+        rows: list[list] = []
+        while True:
+            batch = await ex.fetch_ohlcv(symbol, tf, since=since, limit=1000)
+            batch = [r for r in batch if not rows or r[0] > rows[-1][0]]
+            if not batch:
+                break
+            rows += batch
+            since = batch[-1][0] + 1
+            if batch[-1][0] >= time.time() * 1000 - step:
+                break
+        return Candles.from_rows(rows[-need:])
+
+    async def _update(self, ex, symbol: str, tf: str, old: Candles, need: int) -> Candles:
+        """Pide las últimas velas y las empalma con las que ya teníamos."""
+        rows = await ex.fetch_ohlcv(symbol, tf, limit=10)
+        if not rows:
+            return old
+        first = rows[0][0]
+        if first > old.ts[-1] + TF_SECONDS.get(tf, 3600) * 1000 * 1.5 and tf != "1M":
+            return await self._fetch_many(ex, symbol, tf, need)  # hueco (el bot estuvo apagado): recargar todo
+        keep = [i for i, t in enumerate(old.ts) if t < first]
+        merged = [[old.ts[i], old.open[i], old.high[i], old.low[i], old.close[i], old.volume[i]] for i in keep] + rows
+        return Candles.from_rows(merged[-need:])

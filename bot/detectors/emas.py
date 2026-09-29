@@ -1,5 +1,10 @@
 """EMAs: toques de la EMA 100/200, la nube entre ambas y cruces de la EMA 21/34.
 
+Las EMAs están definidas en DIARIO (``emas.base_timeframe``). Si se evalúan en
+otro timeframe, el largo se adapta para que sea la misma línea: en 4H hay 6
+velas por día, así que la EMA 100 diaria es la EMA 600 de 4H (21→126, 34→204,
+200→1200). En 1H sería ×24.
+
 * Toque: la vela en curso contiene la EMA (low <= EMA <= high). Un aviso por
   vela, con enfriamiento de N velas para no repetir mientras sigue pegado.
 * Nube (EMA100–EMA200): avisa cuando entra, sale, se acerca (a menos de
@@ -16,10 +21,34 @@ import time
 from .. import fmt
 from ..config import Config, Group
 from ..indicators import atr, ema
-from ..market import Candles, Market, tf_name
+from ..market import TF_SECONDS, Candles, Market, tf_name
 from ..state import State
 
 log = logging.getLogger(__name__)
+
+NOMINAL = (21, 34, 100, 200)
+
+
+def scaled_lengths(tf: str, base_tf: str = "1d") -> dict[int, int]:
+    """Largo real de cada EMA diaria en ``tf``. Ej. en 4H: {21: 126, 34: 204, 100: 600, 200: 1200}."""
+    k = TF_SECONDS[base_tf] / TF_SECONDS[tf]
+    return {n: max(1, round(n * k)) for n in NOMINAL}
+
+
+def history_needed(tf: str, base_tf: str = "1d") -> int:
+    """Velas a descargar para que la EMA más larga converja (4× su largo)."""
+    return 4 * scaled_lengths(tf, base_tf)[200]
+
+
+def ema_name(n: int, tf: str, base_tf: str = "1d") -> str:
+    """'EMA 100' en diario, 'EMA 100D (600 en 4H)' en otro timeframe."""
+    real = scaled_lengths(tf, base_tf)[n]
+    return f"EMA {n}" if real == n else f"EMA {n}D ({real} en {tf_name(tf)})"
+
+
+def compute_emas(closes: list[float], tf: str, base_tf: str = "1d") -> dict[int, list]:
+    return {n: ema(closes, real) for n, real in scaled_lengths(tf, base_tf).items()}
+
 
 ZONE_TEXT = {
     "above": "arriba de la nube",
@@ -75,6 +104,7 @@ class EmaDetector:
         self.market = market
         self.state = state
         self.p = cfg.emas
+        self.base_tf = cfg.emas["base_timeframe"]
 
     def reminder_seconds(self, tf: str) -> float:
         rh = self.p["reminder_hours"]
@@ -91,7 +121,10 @@ class EmaDetector:
                 price = None
                 for tf in g.ema_timeframes:
                     try:
-                        c = await self.market.candles(asset, tf, max_age=float(self.p["refresh_seconds"]))
+                        c = await self.market.candles(
+                            asset, tf, max_age=float(self.p["refresh_seconds"]),
+                            min_candles=history_needed(tf, self.base_tf),
+                        )
                     except Exception as e:  # noqa: BLE001
                         log.warning("EMAs %s %s: %s", asset, tf, e)
                         continue
@@ -103,7 +136,7 @@ class EmaDetector:
 
     def evaluate(self, asset: str, tf: str, c: Candles, g: Group, now: float) -> list[str]:
         closes = c.close
-        e = {n: ema(closes, n) for n in (21, 34, 100, 200)}
+        e = compute_emas(closes, tf, self.base_tf)
         a = atr(c.high, c.low, c.close, 14)
         events: list[str] = []
         label = f"[{tf_name(tf)}]"
@@ -120,10 +153,13 @@ class EmaDetector:
         if g.ema_cloud:
             events += self._cloud(asset, tf, label, c, e, a, now)
             if new_close:
-                events += self._cross(label, e[100], e[200], "EMA 100", "EMA 200", "la nube se vuelve alcista", "la nube se vuelve bajista")
+                events += self._cross(label, e[100], e[200], self._n(100, tf), self._n(200, tf), "la nube se vuelve alcista", "la nube se vuelve bajista")
         if g.ema_cross and new_close:
-            events += self._cross(label, e[21], e[34], "EMA 21", "EMA 34", "cruce alcista", "cruce bajista")
+            events += self._cross(label, e[21], e[34], self._n(21, tf), self._n(34, tf), "cruce alcista", "cruce bajista")
         return events
+
+    def _n(self, n: int, tf: str) -> str:
+        return ema_name(n, tf, self.base_tf)
 
     # ── Toques de la EMA 100 / 200 ───────────────────────────────────────────
     def _touches(self, asset: str, tf: str, label: str, c: Candles, e: dict) -> list[str]:
@@ -140,7 +176,7 @@ class EmaDetector:
             self.state.set(key, c.ts[-1])
             prev_close = c.close[-2] if len(c) >= 2 else c.open[-1]
             side = "desde arriba (testeando soporte)" if prev_close >= v else "desde abajo (testeando resistencia)"
-            out.append(f"🎯 {label} tocó la <b>EMA {n}</b> ({fmt.price(v)}) {side}")
+            out.append(f"🎯 {label} tocó la <b>{self._n(n, tf)}</b> ({fmt.price(v)}) {side}")
         return out
 
     # ── Nube EMA100–EMA200 ───────────────────────────────────────────────────

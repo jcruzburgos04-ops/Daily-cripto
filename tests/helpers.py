@@ -6,8 +6,8 @@ from bot.state import State
 def make_cfg(**overrides) -> Config:
     raw = _merge(DEFAULTS, overrides)
     g1 = Group(**{**GROUP_DEFAULTS, "name": "principales", "assets": ["BTC", "ETH"], "moves": True,
-                  "ema_timeframes": ["4h"], "ema_cloud": True, "ash_timeframes": ["1w"], "ash_color_changes": True})
-    g2 = Group(**{**GROUP_DEFAULTS, "name": "alts", "assets": ["UNI"], "ema_timeframes": ["4h"],
+                  "ema_timeframes": ["1d"], "ema_cloud": True, "ash_timeframes": ["1w"], "ash_color_changes": True})
+    g2 = Group(**{**GROUP_DEFAULTS, "name": "alts", "assets": ["UNI"], "ema_timeframes": ["1d"],
                   "ema_cross": True, "ash_timeframes": ["1w"]})
     return Config(raw=raw, groups=[g1, g2])
 

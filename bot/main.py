@@ -11,9 +11,9 @@ from datetime import datetime, timedelta, timezone
 from . import fmt, summary
 from .config import Config, load_config
 from .detectors.ash import AshDetector
-from .detectors.emas import EmaDetector
+from .detectors.emas import EmaDetector, scaled_lengths
 from .detectors.moves import MoveDetector
-from .market import Market
+from .market import Market, tf_name
 from .state import State
 from .telegram import Telegram
 
@@ -110,9 +110,13 @@ class Bot:
                 lines.append(f"  • Movimientos: {wins} (umbrales de {m['reference']}; el resto ajustado por ATR)")
             if g.ema_timeframes:
                 feats = [x for x, on in (("toques EMA100/200", g.ema_touch), ("nube 100/200", g.ema_cloud), ("cruces 21/34", g.ema_cross)) if on]
-                lines.append(f"  • EMAs {', '.join(g.ema_timeframes)}: {', '.join(feats)}")
+                lines.append(f"  • EMAs diarias en {', '.join(g.ema_timeframes)}: {', '.join(feats)}")
             if g.ash_timeframes:
                 lines.append(f"  • ASH {', '.join(g.ash_timeframes)}" + (" (dirección y color)" if g.ash_color_changes else " (dirección)"))
+        base = self.cfg.emas["base_timeframe"]
+        for tf in sorted({tf for g in self.cfg.groups for tf in g.ema_timeframes} - {base}):
+            eq = ", ".join(f"{n}→{r}" for n, r in scaled_lengths(tf, base).items())
+            lines.append(f"<i>EMAs en {tf_name(tf)} adaptadas al diario: {eq}</i>")
         lines.append(f"\nResumen diario: {self.cfg.summary['time_utc']} UTC")
         routes = []
         for a in self.cfg.all_assets:

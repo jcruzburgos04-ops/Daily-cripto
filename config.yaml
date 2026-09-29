@@ -24,7 +24,7 @@ groups:
   principales:
     assets: [BTC, ETH]
     moves: true                        # alertas de ±1%/5m, ±3%/30m, ±5%/1h
-    ema_timeframes: [1h, 4h, 1d]
+    ema_timeframes: [1d]               # ver nota en la sección `emas`
     ema_touch: true                    # toques de la EMA 100 y 200
     ema_cloud: true                    # nube EMA100–EMA200 (entra / sale / sigue oscilando)
     ema_cross: false
@@ -34,7 +34,7 @@ groups:
   alts:
     assets: [UNI, AAVE, XPL, LINK, AVAX, ONDO, HYPE]
     moves: false
-    ema_timeframes: [4h, 1d]
+    ema_timeframes: [1d]
     ema_touch: true
     ema_cloud: false
     ema_cross: true                    # cruces de la EMA 21 y 34
@@ -60,16 +60,23 @@ moves:
   rearm: 0.5                # se re-arma cuando el movimiento vuelve por debajo de 0,5× el umbral
 
 # ─── EMAs ───────────────────────────────────────────────────────────────────
+# Las EMAs 21 / 34 / 100 / 200 son DIARIAS. Los toques se detectan en tiempo real
+# sobre la vela diaria en curso. Si agregás 4h (u otro) a `ema_timeframes`, el
+# largo se adapta solo para que sea la misma línea que la diaria:
+#   4H → ×6:  21→126, 34→204, 100→600, 200→1200
+#   1H → ×24: 21→504, 34→816, 100→2400, 200→4800
+# Sirve, por ejemplo, para ver el cruce 21/34 al cierre de una vela de 4H en vez
+# de esperar al cierre diario.
 emas:
+  base_timeframe: 1d
   refresh_seconds: 60
-  touch_cooldown_candles: 3   # tras un toque, no repetir ese mismo toque por 3 velas
+  touch_cooldown_candles: 1   # un aviso por vela por cada EMA
   near_atr: 0.5               # "cerca de la nube" = a menos de 0,5 ATR de un borde
   confirm_seconds: 60         # un cambio de zona tiene que sostenerse 1 min para avisar
   oscillation_lookback: 20
   reminder_hours:             # cada cuánto recordar que sigue dentro / cerca de la nube
-    1h: 3
+    1d: 12
     4h: 8
-    1d: 24
     default: 6
 
 # ─── ASH (Absolute Strength Histogram v2) ───────────────────────────────────
@@ -84,5 +91,5 @@ ash:
 summary:
   enabled: true
   time_utc: "00:05"                 # cierre diario de cripto = 00:00 UTC (21:00 en Argentina)
-  ema_timeframes: [4h, 1d]
+  ema_timeframes: [1d]
   ash_timeframes: [1d, 1w, 1M]

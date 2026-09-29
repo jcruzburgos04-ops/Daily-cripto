@@ -67,16 +67,16 @@ def test_cloud_touch_and_entry():
     g = cfg.groups[0]
     closes = _uptrend_then([])
     c = candles_from_closes(closes, step=4 * 3600_000)
-    assert det.evaluate("BTC", "4h", c, g, now=0) == []   # primera pasada: memoriza
+    assert det.evaluate("BTC", "1d", c, g, now=0) == []   # primera pasada: memoriza
     # caída fuerte hasta dentro de la nube
     c2 = candles_from_closes(closes + [210.0], step=4 * 3600_000)
-    ev = det.evaluate("BTC", "4h", c2, g, now=10)
+    ev = det.evaluate("BTC", "1d", c2, g, now=10)
     assert any("EMA 100" in e for e in ev)                 # la vela atravesó la EMA 100
     assert not any("entró" in e for e in ev)               # todavía sin confirmar
-    ev = det.evaluate("BTC", "4h", c2, g, now=100)
+    ev = det.evaluate("BTC", "1d", c2, g, now=100)
     assert any("entró a la nube" in e for e in ev)
     # recordatorio pasado el tiempo configurado
-    ev = det.evaluate("BTC", "4h", c2, g, now=100 + 7 * 3600)
+    ev = det.evaluate("BTC", "1d", c2, g, now=100 + 7 * 3600)
     assert any("sigue" in e and "DENTRO" in e for e in ev)
 
 
@@ -87,11 +87,11 @@ def test_ema_21_34_cross_on_closed_candle():
     g = cfg.groups[1]
     closes = [200 - i * 0.5 for i in range(100)]   # bajista: 21 < 34
     c = candles_from_closes(closes + [150], step=3600_000)
-    det.evaluate("UNI", "4h", c, g, now=0)
+    det.evaluate("UNI", "1d", c, g, now=0)
     ev = []
     for k in range(1, 40):
         closes.append(closes[-1] + 3)                 # rebote fuerte
-        ev += det.evaluate("UNI", "4h", candles_from_closes(closes + [closes[-1]], step=3600_000), g, now=k)
+        ev += det.evaluate("UNI", "1d", candles_from_closes(closes + [closes[-1]], step=3600_000), g, now=k)
     crosses = [e for e in ev if "EMA 21 cruzó ARRIBA" in e]
     assert len(crosses) == 1
 
@@ -119,3 +119,38 @@ def test_ash_flip_that_reverts_is_not_sent():
     det.evaluate("BTC", "1w", candles_from_closes(down + [down[-1] + 30]), False, now=10)
     det.evaluate("BTC", "1w", candles_from_closes(down + [down[-1] - 5]), False, now=300)
     assert det.evaluate("BTC", "1w", candles_from_closes(down + [down[-1] - 5]), False, now=2000) is None
+
+
+def test_scaled_lengths_for_4h_and_1h():
+    from bot.detectors.emas import ema_name, scaled_lengths
+    assert scaled_lengths("1d") == {21: 21, 34: 34, 100: 100, 200: 200}
+    assert scaled_lengths("4h") == {21: 126, 34: 204, 100: 600, 200: 1200}
+    assert scaled_lengths("1h")[200] == 4800
+    assert ema_name(100, "1d") == "EMA 100"
+    assert ema_name(100, "4h") == "EMA 100D (600 en 4H)"
+
+
+def test_4h_scaled_ema_tracks_the_daily_ema():
+    import math
+    import random
+    from bot.detectors.emas import compute_emas
+    random.seed(1)
+    p, h4 = 100.0, []
+    for _ in range(6 * 1500):
+        p *= 1 + random.gauss(0, 0.004)
+        h4.append(p)
+    daily = h4[5::6]                    # cierre diario = cierre de la 6ª vela de 4H
+    d = compute_emas(daily, "1d")
+    f = compute_emas(h4, "4h")
+    for n in (21, 34, 100, 200):
+        assert math.isclose(f[n][-1], d[n][-1], rel_tol=0.01), n
+
+
+def test_4h_touch_uses_scaled_ema_name():
+    cfg = make_cfg()
+    det = EmaDetector(cfg, NoMarket(), mem_state())
+    g = cfg.groups[0]
+    closes = [100 + i * 0.01 for i in range(4000)]
+    c = candles_from_closes(closes + [closes[-1] - 8], step=4 * 3600_000)
+    ev = det.evaluate("BTC", "4h", c, g, now=0)
+    assert any("EMA 100D (600 en 4H)" in e for e in ev)

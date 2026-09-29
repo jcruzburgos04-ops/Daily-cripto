@@ -7,8 +7,8 @@ import time
 from . import fmt
 from .config import Config
 from .detectors.ash import compute_ash
-from .detectors.emas import ZONE_TEXT, classify
-from .indicators import atr, ema
+from .detectors.emas import ZONE_TEXT, classify, compute_emas, history_needed
+from .indicators import atr
 from .market import Market, tf_name
 
 log = logging.getLogger(__name__)
@@ -28,13 +28,15 @@ async def asset_block(cfg: Config, market: Market, asset: str, closing: bool, de
     chg = (d.close[i] / d.close[i - 1] - 1) * 100 if len(d) >= 3 else 0.0
     head = f"<b>{asset}</b> {fmt.price(d.close[i])} ({fmt.pct(chg)} {'el día' if closing else 'hoy'})"
 
+    base_tf = cfg.emas["base_timeframe"]
     ema_parts = []
     for tf in s["ema_timeframes"]:
         try:
-            c = await market.candles(asset, tf, max_age=60)
+            c = await market.candles(asset, tf, max_age=60, min_candles=history_needed(tf, base_tf))
         except Exception:  # noqa: BLE001
             continue
-        e21, e34, e100, e200 = (ema(c.close, n)[i] for n in (21, 34, 100, 200))
+        e = compute_emas(c.close, tf, base_tf)
+        e21, e34, e100, e200 = (e[n][i] for n in (21, 34, 100, 200))
         a = atr(c.high, c.low, c.close, 14)[i]
         px = c.close[i]
         bits = []

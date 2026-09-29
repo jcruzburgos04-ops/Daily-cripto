@@ -9,13 +9,13 @@ Bot que está conectado todo el tiempo al mercado (APIs públicas de Binance / B
 |---|---|
 | ⚡ Movimiento brusco | BTC sube o baja **≥1% en ≤5 min**, **≥3% en ≤30 min**, **≥5% en ≤1 h**. Son mínimos: si sigue, vuelve a avisar en cada múltiplo (x2, x3…). |
 | ⚡ Movimiento en ETH | Mismos umbrales **multiplicados por su ATR relativo** (ATR% diario de ETH ÷ ATR% de BTC). Si ETH se mueve 1,4× lo que BTC, su umbral de 5 min es 1,4%. |
-| 🎯 Toque de EMA 100 / 200 | La vela en curso toca la EMA (1H, 4H y diario). Dice si viene desde arriba (soporte) o desde abajo (resistencia). |
+| 🎯 Toque de EMA 100 / 200 | La vela diaria en curso toca la EMA diaria (se revisa cada minuto, avisa en el momento). Dice si viene desde arriba (soporte) o desde abajo (resistencia). |
 | ☁️ Nube EMA100–EMA200 | Entra, sale, se acerca (a menos de 0,5 ATR) o la cruza. **Mientras siga dentro o cerca, manda un recordatorio** con cuántas velas tocaron la nube, cuántas cerraron adentro y cuántas veces cambió de lado. También avisa cuando la EMA100 cruza la 200 (la nube cambia de color). |
 | 🔄 ASH semanal / mensual | Cambia de dirección (▲↔▼) o de color (gana/pierde fuerza). |
 
 ### Altcoins (grupo `alts`): UNI, AAVE, XPL, LINK, AVAX, ONDO, HYPE
-- 🎯 Toques de la EMA 100 / 200 (4H y diario)
-- ✅❌ Cruces de la EMA 21 y 34 (sólo con vela cerrada)
+- 🎯 Toques de la EMA 100 / 200 diaria
+- ✅❌ Cruces de la EMA 21 y 34 diaria (sólo con vela cerrada)
 - 🔄 Cambios del ASH semanal / mensual
 
 ### 🌙 Resumen al cierre
@@ -28,7 +28,7 @@ Todos los días a las 00:05 UTC (21:05 en Argentina): precio y variación del d�
 
 Se replica la matemática de Pine Script para que coincida con lo que ves en TradingView:
 
-- **EMA**: `ta.ema` (alpha = 2/(n+1), arranca con la SMA de las primeras n velas). Se usan 1000 velas de historia para que la EMA 200 converja.
+- **EMA**: `ta.ema` (alpha = 2/(n+1), arranca con la SMA de las primeras n velas). Las EMAs 21 / 34 / 100 / 200 son **diarias**. Si agregás otro timeframe en `ema_timeframes`, el largo se adapta solo para que sea la misma línea: en 4H ×6 (21→126, 34→204, 100→600, 200→1200), en 1H ×24. Se baja historia suficiente (4× el largo de la EMA más larga) para que converjan.
 - **ASH v2**: modo RSI, Length 9, Smooth 3, media WMA (los valores por defecto de tu indicador). `Bulls = WMA(WMA(max(Δ,0), 9), 3)`, `Bears` igual con la caída. Dirección ▲ si Bulls ≥ Bears. Color como el indicador: 🟢 verde (alcista, Bulls subiendo), 🟩 lime (alcista, Bulls bajando), 🔴 rojo (bajista, Bears subiendo), 🟠 naranja (bajista, Bears bajando).
 - Igual que el cuadro MTF, el ASH semanal/mensual se mira sobre la **vela en curso**. Para no avisar cambios que se deshacen enseguida, un cambio tiene que sostenerse 15 minutos (`ash.confirm_minutes`).
 - **ATR**: `ta.atr(14)` (RMA del true range).
