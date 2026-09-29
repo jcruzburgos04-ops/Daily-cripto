@@ -85,7 +85,7 @@ def moving_average(kind: str, values: Sequence[Optional[float]], n: int) -> Seri
     raise ValueError(f"Tipo de media no soportado para el ASH: {kind}")
 
 
-def ash(close: Sequence[float], length: int = 9, smooth: int = 3, ma_type: str = "WMA") -> tuple[Series, Series]:
+def ash(close: Sequence[float], length: int = 16, smooth: int = 4, ma_type: str = "EMA") -> tuple[Series, Series]:
     """Absolute Strength Histogram v2 (jh), modo RSI (el predeterminado).
 
     Bulls0 = 0.5 * (|Δ| + Δ)   Bears0 = 0.5 * (|Δ| - Δ)   con Δ = close - close[1]

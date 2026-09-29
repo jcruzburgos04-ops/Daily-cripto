@@ -81,9 +81,9 @@ emas:
 
 # ─── ASH (Absolute Strength Histogram v2) ───────────────────────────────────
 ash:
-  length: 9
-  smooth: 3
-  ma: WMA
+  length: 16         # Period of Evaluation
+  smooth: 4          # Period of Smoothing
+  ma: EMA            # modo RSI (el único implementado)
   refresh_seconds: 300
   confirm_minutes: 15   # el cambio en la vela en curso tiene que sostenerse 15 min
 

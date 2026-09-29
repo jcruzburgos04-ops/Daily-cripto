@@ -48,9 +48,9 @@ DEFAULTS: dict[str, Any] = {
         "reminder_hours": {"default": 6},
     },
     "ash": {
-        "length": 9,
-        "smooth": 3,
-        "ma": "WMA",
+        "length": 16,
+        "smooth": 4,
+        "ma": "EMA",
         "refresh_seconds": 300,
         "confirm_minutes": 15,
     },

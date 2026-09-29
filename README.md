@@ -29,7 +29,7 @@ Todos los días a las 00:05 UTC (21:05 en Argentina): precio y variación del d�
 Se replica la matemática de Pine Script para que coincida con lo que ves en TradingView:
 
 - **EMA**: `ta.ema` (alpha = 2/(n+1), arranca con la SMA de las primeras n velas). Las EMAs 21 / 34 / 100 / 200 son **diarias**. Si agregás otro timeframe en `ema_timeframes`, el largo se adapta solo para que sea la misma línea: en 4H ×6 (21→126, 34→204, 100→600, 200→1200), en 1H ×24. Se baja historia suficiente (4× el largo de la EMA más larga) para que converjan.
-- **ASH v2**: modo RSI, Length 9, Smooth 3, media WMA (los valores por defecto de tu indicador). `Bulls = WMA(WMA(max(Δ,0), 9), 3)`, `Bears` igual con la caída. Dirección ▲ si Bulls ≥ Bears. Color como el indicador: 🟢 verde (alcista, Bulls subiendo), 🟩 lime (alcista, Bulls bajando), 🔴 rojo (bajista, Bears subiendo), 🟠 naranja (bajista, Bears bajando).
+- **ASH v2**: modo RSI, Length 16, Smooth 4, media EMA (tu configuración). `Bulls = EMA(EMA(max(Δ,0), 16), 4)`, `Bears` igual con la caída. Dirección ▲ si Bulls ≥ Bears. Color como el indicador: 🟢 verde (alcista, Bulls subiendo), 🟩 lime (alcista, Bulls bajando), 🔴 rojo (bajista, Bears subiendo), 🟠 naranja (bajista, Bears bajando).
 - Igual que el cuadro MTF, el ASH semanal/mensual se mira sobre la **vela en curso**. Para no avisar cambios que se deshacen enseguida, un cambio tiene que sostenerse 15 minutos (`ash.confirm_minutes`).
 - **ATR**: `ta.atr(14)` (RMA del true range).
 

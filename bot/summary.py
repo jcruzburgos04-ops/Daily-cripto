@@ -67,6 +67,7 @@ async def asset_block(cfg: Config, market: Market, asset: str, closing: bool, de
         idx = -2 if just_closed else -1
         st = compute_ash(cfg, c, idx)
         if st is None:
+            ash_parts.append(f"{tf_name(tf)} — (sólo {len(c)} velas de historia)")
             continue
         txt = f"{tf_name(tf)} {st.emoji}{st.arrow}"
         if detailed:

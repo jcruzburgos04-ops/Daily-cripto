@@ -102,7 +102,7 @@ def test_ash_flip_needs_confirmation():
     det = AshDetector(cfg, NoMarket(), st)
     down = [200 - 2 * i for i in range(30)]
     assert det.evaluate("BTC", "1w", candles_from_closes(down), True, now=0) is None
-    up = down + [down[-1] + 30]
+    up = down + [down[-1] + 80]
     c = candles_from_closes(up)
     assert det.evaluate("BTC", "1w", c, True, now=10) is None          # pendiente
     assert det.evaluate("BTC", "1w", c, True, now=60) is None          # < 15 min
