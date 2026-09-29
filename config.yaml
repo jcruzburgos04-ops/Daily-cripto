@@ -1,0 +1,88 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Configuración del bot de alertas.  El token y el chat de Telegram van en .env
+# ════════════════════════════════════════════════════════════════════════════
+
+general:
+  timezone: America/Argentina/Buenos_Aires   # para mostrar horas en los mensajes
+  poll_seconds: 15                           # cada cuánto revisa el mercado
+  # Exchanges de donde saca precios, en orden de preferencia. Si un par no está
+  # en el primero, lo busca en el siguiente (ej. HYPE suele estar en Bybit/OKX).
+  exchanges: [binance, bybit, okx]
+  quote: USDT
+  history: 1000                  # velas a descargar (la EMA 200 necesita historia)
+  state_file: data/state.json
+  startup_message: true
+
+# Forzar par o exchange para algún activo (opcional):
+symbols: {}
+#  HYPE: {exchange: bybit}
+#  XPL:  {symbol: XPL/USDT, exchange: binance}
+
+# ─── Grupos de activos ──────────────────────────────────────────────────────
+# Para agregar una altcoin, sumala a la lista `assets` de `alts`.
+groups:
+  principales:
+    assets: [BTC, ETH]
+    moves: true                        # alertas de ±1%/5m, ±3%/30m, ±5%/1h
+    ema_timeframes: [1h, 4h, 1d]
+    ema_touch: true                    # toques de la EMA 100 y 200
+    ema_cloud: true                    # nube EMA100–EMA200 (entra / sale / sigue oscilando)
+    ema_cross: false
+    ash_timeframes: [1w, 1M]           # ASH semanal y mensual
+    ash_color_changes: true            # también avisa si gana / pierde fuerza
+
+  alts:
+    assets: [UNI, AAVE, XPL, LINK, AVAX, ONDO, HYPE]
+    moves: false
+    ema_timeframes: [4h, 1d]
+    ema_touch: true
+    ema_cloud: false
+    ema_cross: true                    # cruces de la EMA 21 y 34
+    ash_timeframes: [1w, 1M]
+    ash_color_changes: false
+
+# ─── Movimientos bruscos ────────────────────────────────────────────────────
+moves:
+  reference: BTC            # los umbrales de abajo son para este activo
+  windows:                  # mínimos: si se mueve el doble, avisa de nuevo (x2), etc.
+    - {minutes: 5,  pct: 1.0}
+    - {minutes: 30, pct: 3.0}
+    - {minutes: 60, pct: 5.0}
+  scale:
+    # atr   → umbral de ETH = umbral BTC × (ATR% de ETH / ATR% de BTC)
+    # fixed → usa los multiplicadores de `fixed`
+    mode: atr
+    atr_timeframe: 1d
+    atr_length: 14
+    min: 1.0                # el factor nunca baja de esto…
+    max: 3.0                # …ni sube de esto
+    fixed: {ETH: 1.5}
+  rearm: 0.5                # se re-arma cuando el movimiento vuelve por debajo de 0,5× el umbral
+
+# ─── EMAs ───────────────────────────────────────────────────────────────────
+emas:
+  refresh_seconds: 60
+  touch_cooldown_candles: 3   # tras un toque, no repetir ese mismo toque por 3 velas
+  near_atr: 0.5               # "cerca de la nube" = a menos de 0,5 ATR de un borde
+  confirm_seconds: 60         # un cambio de zona tiene que sostenerse 1 min para avisar
+  oscillation_lookback: 20
+  reminder_hours:             # cada cuánto recordar que sigue dentro / cerca de la nube
+    1h: 3
+    4h: 8
+    1d: 24
+    default: 6
+
+# ─── ASH (Absolute Strength Histogram v2) ───────────────────────────────────
+ash:
+  length: 9
+  smooth: 3
+  ma: WMA
+  refresh_seconds: 300
+  confirm_minutes: 15   # el cambio en la vela en curso tiene que sostenerse 15 min
+
+# ─── Resumen al cierre ──────────────────────────────────────────────────────
+summary:
+  enabled: true
+  time_utc: "00:05"                 # cierre diario de cripto = 00:00 UTC (21:00 en Argentina)
+  ema_timeframes: [4h, 1d]
+  ash_timeframes: [1d, 1w, 1M]

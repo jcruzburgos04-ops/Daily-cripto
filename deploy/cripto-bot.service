@@ -1,0 +1,17 @@
+# Servicio systemd (alternativa a Docker).
+# sudo cp deploy/cripto-bot.service /etc/systemd/system/
+# sudo systemctl daemon-reload && sudo systemctl enable --now cripto-bot
+[Unit]
+Description=Bot de alertas cripto (Telegram)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/Daily-cripto
+ExecStart=/opt/Daily-cripto/.venv/bin/python -m bot
+Restart=always
+RestartSec=10
+User=cripto
+
+[Install]
+WantedBy=multi-user.target
